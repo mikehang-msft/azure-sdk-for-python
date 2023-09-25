@@ -71,6 +71,8 @@ class TestRoomsClientAsync(ACSRoomsTestCase):
     async def test_create_room_no_attributes_async(self):
         async with self.rooms_client:
             response = await self.rooms_client.create_room()
+            self.verify_successful_room_response(response=response)
+            
             # delete created room
             await self.rooms_client.delete_room(room_id=response.id)
 
@@ -135,6 +137,52 @@ class TestRoomsClientAsync(ACSRoomsTestCase):
             # delete created room
             await self.rooms_client.delete_room(room_id=response.id)
             self.verify_successful_room_response(response=response, valid_from=valid_from, valid_until=valid_until)
+
+    @pytest.mark.live_test_only
+    @recorded_by_proxy_async
+    async def test_create_room_pstnDialOutEnabled(self):
+        # room attributes
+
+        async with self.rooms_client:
+            response = await self.rooms_client.create_room(pstnDialOutEnabled=True)
+            
+        self.verify_successful_room_response(response=response, pstnDialOutEnabled=True)
+
+        # delete created room
+        await self.rooms_client.delete_room(room_id=response.id)
+        
+        
+        async with self.rooms_client:
+            response = await self.rooms_client.create_room(pstnDialOutEnabled=False)
+            
+        self.verify_successful_room_response(response=response, pstnDialOutEnabled=False)
+
+        # delete created room
+        await self.rooms_client.delete_room(room_id=response.id)
+    
+    @pytest.mark.live_test_only
+    @recorded_by_proxy_async
+    async def test_create_room_timerange_pstnDialOutEnabled(self):
+        # room attributes
+        valid_from =  datetime.now() + timedelta(days=3)
+        valid_until = valid_from + timedelta(weeks=4)
+
+        async with self.rooms_client:
+            response = await self.rooms_client.create_room(valid_from=valid_from, valid_until=valid_until, pstnDialOutEnabled=True)
+
+        self.verify_successful_room_response(response=response, valid_from=valid_from, valid_until=valid_until, pstnDialOutEnabled=True)
+        
+        # delete created room
+        await self.rooms_client.delete_room(room_id=response.id)
+
+        async with self.rooms_client:
+            response = await self.rooms_client.create_room(valid_from=valid_from, valid_until=valid_until, pstnDialOutEnabled=False)
+
+        self.verify_successful_room_response(response=response, valid_from=valid_from, valid_until=valid_until, pstnDialOutEnabled=False)
+        
+        # delete created room
+        await self.rooms_client.delete_room(room_id=response.id)
+
 
     @recorded_by_proxy_async
     async def test_create_room_incorrectMri_async(self):
@@ -581,7 +629,7 @@ class TestRoomsClientAsync(ACSRoomsTestCase):
                 assert str(ex.value.status_code) == "400"
                 assert ex.value.message is not None
 
-    def verify_successful_room_response(self, response, valid_from=None, valid_until=None, room_id=None):
+    def verify_successful_room_response(self, response, valid_from=None, valid_until=None, room_id=None, pstnDialOutEnabled=None ):
         if room_id is not None:
             assert room_id == response.id
         if valid_from is not None:
@@ -590,8 +638,11 @@ class TestRoomsClientAsync(ACSRoomsTestCase):
         if valid_until is not None:
             assert valid_until.replace(tzinfo=None) == datetime.strptime(
                 response.valid_until, "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=None)
+        if pstnDialOutEnabled is not None:
+            assert pstnDialOutEnabled == response.pstnDialOutEnabled
         assert response.created_at is not None
         assert response.id is not None
         assert response.valid_from is not None
         assert response.valid_until is not None
+        assert response.pstnDialOutEnabled is not None
 
